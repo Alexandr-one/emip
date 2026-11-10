@@ -6,6 +6,8 @@
 #   -r REF   apx-gcs git ref to clone (branch, tag or commit), default: main
 #   -b DIR   build directory, default: ./build
 #   -o DIR   output directory for the packaged plugin, default: ./dist
+# Env: APX_GCS_REPO, APX_GCS_REF (clone source), APX_GCS_SKIP_PLUGINS (space separated GCS plugin
+# directories to drop from the configuration, e.g. "VideoStreaming Joystick").
 #
 # The plugin directory is copied into <apx-gcs>/src/Plugins/Tools and registered in the
 # Tools CMakeLists, then only the plugin target (and the GCS libraries it links to) is built.
@@ -48,6 +50,12 @@ rm -rf "$TOOLS/$PLUGIN"
 cp -r "$ROOT/$PLUGIN" "$TOOLS/$PLUGIN"
 grep -q "add_subdirectory(\"$PLUGIN\")" "$TOOLS/CMakeLists.txt" ||
     echo "add_subdirectory(\"$PLUGIN\")" >>"$TOOLS/CMakeLists.txt"
+
+# plugins that need extra native libraries (SDL, GStreamer) and are not needed to build ours
+for skip in ${APX_GCS_SKIP_PLUGINS:-}; do
+    sed -i.bak "/add_subdirectory(\"$skip\")/d" "$SRC"/src/Plugins/*/CMakeLists.txt
+    echo "skipped GCS plugin: $skip"
+done
 
 cmake -S "$SRC" -B "$BUILD" -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build "$BUILD" --target "$PLUGIN"

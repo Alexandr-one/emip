@@ -53,8 +53,9 @@ git push origin v1.0.0
 ```
 
 The [workflow](.github/workflows/release.yml) builds the plugin for Linux (in the
-`uavos/apx-gcs-linux` container) and macOS (universal arm64+x86_64, same Qt/SDL/GStreamer
-versions as the GCS release workflow) against `APX_GCS_REF` (default `main`, can be set when
+`uavos/apx-gcs-linux` container) and macOS (universal arm64+x86_64, same Qt version as the GCS
+release workflow; the VideoStreaming and Joystick GCS plugins are left out of the configuration
+so the SDL/GStreamer frameworks are not needed) against `APX_GCS_REF` (default `main`, can be set when
 running the workflow manually) and publishes a GitHub release with both archives and the
 build info. Pushes to `main` and pull requests only build and upload the artifacts.
 

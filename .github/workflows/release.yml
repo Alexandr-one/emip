@@ -45,11 +45,9 @@ jobs:
   build-macos:
     name: Build macOS
     runs-on: macos-latest
-    # same toolchain versions as the GCS release workflow (.github/workflows/apx-gcs-release.yml)
+    # same Qt version as the GCS release workflow (.github/workflows/apx-gcs-release.yml)
     env:
       VERSION_QT: 6.12.0
-      VERSION_SDL: 2.30.8
-      VERSION_GST: 1.28.6
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -70,28 +68,11 @@ jobs:
             qtconnectivity qttasktree qtimageformats
           echo "/tmp/$VERSION_QT/macos/bin" >> $GITHUB_PATH
 
-      # SDL and GStreamer frameworks are required to configure the whole GCS tree
-      - name: Install SDL
-        working-directory: /tmp
-        run: |
-          curl -L --http1.1 --retry 5 --retry-all-errors --retry-delay 5 https://github.com/libsdl-org/SDL/releases/download/release-$VERSION_SDL/SDL2-$VERSION_SDL.dmg --output sdl.dmg
-          hdiutil attach -noverify sdl.dmg
-          sudo cp -a /Volumes/SDL2/SDL2.framework /Library/Frameworks/
-          hdiutil detach /Volumes/SDL2
-          rm -f sdl.dmg
-
-      - name: Install GStreamer
-        working-directory: /tmp
-        run: |
-          curl -L --http1.1 --retry 5 --retry-all-errors --retry-delay 5 https://gstreamer.freedesktop.org/data/pkg/osx/$VERSION_GST/gstreamer-1.0-$VERSION_GST-universal.pkg --output gst.pkg
-          curl -L --http1.1 --retry 5 --retry-all-errors --retry-delay 5 https://gstreamer.freedesktop.org/data/pkg/osx/$VERSION_GST/gstreamer-1.0-devel-$VERSION_GST-universal.pkg --output gst-devel.pkg
-          sudo installer -package gst.pkg -target /
-          sudo installer -package gst-devel.pkg -target /
-          rm -f gst*.pkg
-
       - name: Build plugin against apx-gcs ${{ env.APX_GCS_REF }}
         env:
           QT_PATH: /tmp/${{ env.VERSION_QT }}/macos
+          # these GCS plugins need the SDL/GStreamer frameworks, not needed for ours
+          APX_GCS_SKIP_PLUGINS: VideoStreaming Joystick
         run: |
           export CMAKE_PREFIX_PATH=$QT_PATH/lib/cmake
           export PKG_CONFIG_PATH=$QT_PATH/lib/pkgconfig
