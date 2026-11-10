@@ -11,10 +11,15 @@ GCS build system.
 
 ## Install
 
-1. Download `Emip-linux-x86_64.tar.gz` from [Releases](../../releases).
-2. Unpack `Emip.so` into the user plugins folder: `~/Documents/UAVOS/Plugins/`
-   (if a version-suffixed folder such as `Plugins.12` exists, use that one).
-   Keep the file name: the GCS takes the plugin name from it.
+1. Download the archive for your platform from [Releases](../../releases):
+   `Emip-linux-x86_64.tar.gz` or `Emip-macos-universal.tar.gz`.
+2. Unpack `Emip.so` (Linux) or `Emip.dylib` (macOS) into the user plugins folder
+   `~/Documents/UAVOS/Plugins/` (if a version-suffixed folder such as `Plugins.12`
+   exists, use that one). Keep the file name: the GCS takes the plugin name from it.
+
+The library links against the GCS libraries, so take a release built against the GCS
+version you run (see the build info in the release notes) or build it yourself with
+`-r <apx-gcs tag>`.
 3. Start the GCS. On the first start the plugin switches itself off; enable it in
    Preferences, Plugins, EMIP.
 
@@ -38,7 +43,7 @@ scripts/build.sh -s ~/work/apx-gcs   # existing checkout
 
 The plugin folder is copied into `src/Plugins/Tools/` of the GCS tree, registered in the
 Tools `CMakeLists.txt` and built as the `Emip` target together with the GCS libraries it
-links to. Output: `dist/Emip-<os>-<arch>.tar.gz` (with `Emip.so` and `BUILD_INFO.txt`).
+links to. Output: `dist/Emip-<os>-<arch>.tar.gz` (with the library and `BUILD_INFO.txt`).
 
 ## Release
 
@@ -47,10 +52,11 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 
-The [workflow](.github/workflows/release.yml) builds the plugin in the
-`uavos/apx-gcs-linux` container against `APX_GCS_REF` (default `main`, can be set when
-running the workflow manually) and publishes a GitHub release with the library and the
-build info. Pushes to `main` and pull requests only build and upload the artifact.
+The [workflow](.github/workflows/release.yml) builds the plugin for Linux (in the
+`uavos/apx-gcs-linux` container) and macOS (universal arm64+x86_64, same Qt/SDL/GStreamer
+versions as the GCS release workflow) against `APX_GCS_REF` (default `main`, can be set when
+running the workflow manually) and publishes a GitHub release with both archives and the
+build info. Pushes to `main` and pull requests only build and upload the artifacts.
 
 ## License
 

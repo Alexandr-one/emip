@@ -23,8 +23,6 @@ jobs:
     # the same image the GCS itself is built with (Qt, cmake, ninja, python tools)
     container:
       image: uavos/apx-gcs-linux:latest
-    permissions:
-      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -44,11 +42,89 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  build-macos:
+    name: Build macOS
+    runs-on: macos-latest
+    # same toolchain versions as the GCS release workflow (.github/workflows/apx-gcs-release.yml)
+    env:
+      VERSION_QT: 6.12.0
+      VERSION_SDL: 2.30.8
+      VERSION_GST: 1.28.6
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - run: git config --global --add safe.directory '*'
+
+      - name: Install tools (python)
+        run: python3 -m pip install networkx simplejson jinja2 pyyaml aqtinstall --break-system-packages
+
+      - name: Install Qt
+        working-directory: /tmp
+        run: |
+          aqt install-qt mac desktop $VERSION_QT -m \
+            qtshadertools qt5compat qtcharts qtmultimedia \
+            qtspeech qtlocation qtpositioning qtserialport \
+            qtconnectivity qttasktree qtimageformats
+          echo "/tmp/$VERSION_QT/macos/bin" >> $GITHUB_PATH
+
+      # SDL and GStreamer frameworks are required to configure the whole GCS tree
+      - name: Install SDL
+        working-directory: /tmp
+        run: |
+          curl -L https://github.com/libsdl-org/SDL/releases/download/release-$VERSION_SDL/SDL2-$VERSION_SDL.dmg --output sdl.dmg
+          hdiutil attach -noverify sdl.dmg
+          sudo cp -a /Volumes/SDL2/SDL2.framework /Library/Frameworks/
+          hdiutil detach /Volumes/SDL2
+          rm -f sdl.dmg
+
+      - name: Install GStreamer
+        working-directory: /tmp
+        run: |
+          curl -L https://gstreamer.freedesktop.org/data/pkg/osx/$VERSION_GST/gstreamer-1.0-$VERSION_GST-universal.pkg --output gst.pkg
+          curl -L https://gstreamer.freedesktop.org/data/pkg/osx/$VERSION_GST/gstreamer-1.0-devel-$VERSION_GST-universal.pkg --output gst-devel.pkg
+          sudo installer -package gst.pkg -target /
+          sudo installer -package gst-devel.pkg -target /
+          rm -f gst*.pkg
+
+      - name: Build plugin against apx-gcs ${{ env.APX_GCS_REF }}
+        env:
+          QT_PATH: /tmp/${{ env.VERSION_QT }}/macos
+        run: |
+          export CMAKE_PREFIX_PATH=$QT_PATH/lib/cmake
+          export PKG_CONFIG_PATH=$QT_PATH/lib/pkgconfig
+          scripts/build.sh
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: emip-macos
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: Publish Release
+    needs: [build-linux, build-macos]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Release notes
+        run: |
+          ls -la dist
+          { echo '```'; cat dist/BUILD_INFO-*.txt; echo '```'; } > notes.md
       - name: Release
-        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           name: EMIP ${{ github.ref_name }}
-          body_path: dist/BUILD_INFO.txt
+          body_path: notes.md
           generate_release_notes: true
           files: dist/*

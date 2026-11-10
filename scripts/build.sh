@@ -58,8 +58,17 @@ case "$(uname -s)" in
 Darwin) LIB=$BUILD/out/plugins/$PLUGIN.dylib ;;
 *) LIB=$BUILD/out/plugins/$PLUGIN.so ;;
 esac
-OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-ARCH=$(uname -m)
+case "$(uname -s)" in
+Darwin)
+    OS=macos
+    ARCH=$(lipo -archs "$LIB" 2>/dev/null | tr ' ' '_')
+    [ "$ARCH" = "x86_64_arm64" ] || [ "$ARCH" = "arm64_x86_64" ] && ARCH=universal
+    ;;
+*)
+    OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+    ARCH=$(uname -m)
+    ;;
+esac
 QT_DIR=$(grep -m1 '^Qt6_DIR:' "$BUILD/CMakeCache.txt" | cut -d= -f2 || true)
 STAGE=$BUILD/package
 rm -rf "$STAGE" && mkdir -p "$STAGE"
@@ -70,6 +79,6 @@ cp -f "$LIB" "$STAGE/"
     echo "qt: ${QT_DIR:-unknown}"
     echo "built: $(date -u +%Y-%m-%dT%H:%M:%SZ) on $OS-$ARCH"
 } | tee "$STAGE/BUILD_INFO.txt"
-cp -f "$STAGE/BUILD_INFO.txt" "$OUT/"
+cp -f "$STAGE/BUILD_INFO.txt" "$OUT/BUILD_INFO-$OS-$ARCH.txt"
 tar -C "$STAGE" -czf "$OUT/$PLUGIN-$OS-$ARCH.tar.gz" .
 ls -la "$OUT"
