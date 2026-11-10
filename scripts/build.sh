@@ -52,7 +52,7 @@ grep -q "add_subdirectory(\"$PLUGIN\")" "$TOOLS/CMakeLists.txt" ||
 cmake -S "$SRC" -B "$BUILD" -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build "$BUILD" --target "$PLUGIN"
 
-# package
+# package: <out>/Emip-<os>-<arch>.tar.gz with Emip.so (the file name is the plugin name) and build info
 mkdir -p "$OUT"
 case "$(uname -s)" in
 Darwin) LIB=$BUILD/out/plugins/$PLUGIN.dylib ;;
@@ -60,11 +60,16 @@ Darwin) LIB=$BUILD/out/plugins/$PLUGIN.dylib ;;
 esac
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -m)
-cp -f "$LIB" "$OUT/$PLUGIN-$OS-$ARCH.${LIB##*.}"
+QT_DIR=$(grep -m1 '^Qt6_DIR:' "$BUILD/CMakeCache.txt" | cut -d= -f2 || true)
+STAGE=$BUILD/package
+rm -rf "$STAGE" && mkdir -p "$STAGE"
+cp -f "$LIB" "$STAGE/"
 {
     echo "plugin: $PLUGIN $(git -C "$ROOT" describe --tags --always --dirty 2>/dev/null || echo unknown)"
     echo "apx-gcs: $(git -C "$SRC" describe --tags --always) ($(git -C "$SRC" rev-parse HEAD))"
-    echo "qt: $(grep -m1 'Qt6_VERSION:' "$BUILD/CMakeCache.txt" | cut -d= -f2 || true)"
+    echo "qt: ${QT_DIR:-unknown}"
     echo "built: $(date -u +%Y-%m-%dT%H:%M:%SZ) on $OS-$ARCH"
-} | tee "$OUT/BUILD_INFO.txt"
+} | tee "$STAGE/BUILD_INFO.txt"
+cp -f "$STAGE/BUILD_INFO.txt" "$OUT/"
+tar -C "$STAGE" -czf "$OUT/$PLUGIN-$OS-$ARCH.tar.gz" .
 ls -la "$OUT"

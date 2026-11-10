@@ -11,9 +11,10 @@ GCS build system.
 
 ## Install
 
-1. Download `Emip-linux-x86_64.so` from [Releases](../../releases).
-2. Copy it to the user plugins folder: `~/Documents/UAVOS/Plugins/`
+1. Download `Emip-linux-x86_64.tar.gz` from [Releases](../../releases).
+2. Unpack `Emip.so` into the user plugins folder: `~/Documents/UAVOS/Plugins/`
    (if a version-suffixed folder such as `Plugins.12` exists, use that one).
+   Keep the file name: the GCS takes the plugin name from it.
 3. Start the GCS. On the first start the plugin switches itself off; enable it in
    Preferences, Plugins, EMIP.
 
@@ -37,7 +38,7 @@ scripts/build.sh -s ~/work/apx-gcs   # existing checkout
 
 The plugin folder is copied into `src/Plugins/Tools/` of the GCS tree, registered in the
 Tools `CMakeLists.txt` and built as the `Emip` target together with the GCS libraries it
-links to. Output: `dist/Emip-<os>-<arch>.so` and `dist/BUILD_INFO.txt`.
+links to. Output: `dist/Emip-<os>-<arch>.tar.gz` (with `Emip.so` and `BUILD_INFO.txt`).
 
 ## Release
 
