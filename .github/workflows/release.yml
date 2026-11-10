@@ -1,0 +1,54 @@
+name: Build plugin
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      apx_gcs_ref:
+        description: apx-gcs git ref (branch, tag or commit) to build against
+        default: main
+
+env:
+  # GCS sources the plugin is built against
+  APX_GCS_REPO: https://github.com/uavos/apx-gcs.git
+  APX_GCS_REF: ${{ github.event.inputs.apx_gcs_ref || 'main' }}
+
+jobs:
+  build-linux:
+    name: Build Linux
+    runs-on: ubuntu-latest
+    # the same image the GCS itself is built with (Qt, cmake, ninja, python tools)
+    container:
+      image: uavos/apx-gcs-linux:latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - run: git config --global --add safe.directory '*'
+
+      - name: Build plugin against apx-gcs ${{ env.APX_GCS_REF }}
+        run: scripts/build.sh
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: emip-linux
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: EMIP ${{ github.ref_name }}
+          body_path: dist/BUILD_INFO.txt
+          generate_release_notes: true
+          files: dist/*
