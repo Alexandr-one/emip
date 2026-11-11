@@ -13,29 +13,24 @@ GCS build system.
 
 From the GCS (with the third party plugin system): Preferences, Application, Plugins,
 GitHub plugins, enter `https://github.com/Alexandr-one/emip` and press Install. The GCS
-downloads the release asset for its platform into `~/Documents/UAVOS/Plugins/github/emip/`.
+downloads the library for its platform into `~/Documents/UAVOS/Plugins/github/emip/`.
 
-Manually:
+Manually: download `Emip-linux-x86_64.so` or `Emip-macos-universal.dylib` from
+[Releases](../../releases), rename it to `Emip.so` / `Emip.dylib` (the GCS takes the plugin
+name from the file name) and put it into the user plugins folder `~/Documents/UAVOS/Plugins/`
+(if a version-suffixed folder such as `Plugins.12` exists, use that one).
 
-1. Download the archive for your platform from [Releases](../../releases):
-   `Emip-linux-x86_64.zip` or `Emip-macos-universal.zip`.
-2. Unpack `Emip.so` (Linux) or `Emip.dylib` (macOS) into the user plugins folder
-   `~/Documents/UAVOS/Plugins/` (if a version-suffixed folder such as `Plugins.12`
-   exists, use that one). Keep the file name: the GCS takes the plugin name from it.
-
-The library links against the GCS libraries, so take a release built against the GCS
-version you run (see the build info in the release notes) or build it yourself with
-`-r <apx-gcs tag>`.
-3. Start the GCS. On the first start the plugin switches itself off; enable it in
-   Preferences, Plugins, EMIP.
+On the first start the plugin switches itself off; enable it in Preferences, Plugins, EMIP.
 
 Mandala bindings and limits: defaults in [Emip/EmipConfig.qml](Emip/EmipConfig.qml),
 overridden by the user file `~/Documents/UAVOS/emip/emip.json` (same keys). The file is
 created with the defaults on the first start and never overwritten afterwards.
 
-The plugin needs a GCS with `application.loadJson/saveJson` and
-`groundControl.addControlPage` (apx-gcs PR #159). On an older GCS the panel still works
-with the bundled defaults, the `FP` page is not added.
+The library links against the GCS libraries, so take a release built against the GCS
+version you run (see `BUILD_INFO-*.txt` in the release) or build it yourself with
+`-r <apx-gcs tag>`. The plugin needs a GCS with `application.loadJson/saveJson` and
+`groundControl.addControlPage` (apx-gcs PR #159); on an older GCS the panel works with the
+bundled defaults and the `FP` page is not added.
 
 ## Build
 
@@ -49,7 +44,7 @@ scripts/build.sh -s ~/work/apx-gcs   # existing checkout
 
 The plugin folder is copied into `src/Plugins/Tools/` of the GCS tree, registered in the
 Tools `CMakeLists.txt` and built as the `Emip` target together with the GCS libraries it
-links to. Output: `dist/Emip-<os>-<arch>.zip` (with the library and `BUILD_INFO.txt`).
+links to. Output: `dist/Emip-<os>-<arch>.so|dylib` and `dist/BUILD_INFO-<os>-<arch>.txt`.
 
 ## Release
 
@@ -62,7 +57,7 @@ The [workflow](.github/workflows/release.yml) builds the plugin for Linux (in th
 `uavos/apx-gcs-linux` container) and macOS (universal arm64+x86_64, same Qt version as the GCS
 release workflow; the VideoStreaming and Joystick GCS plugins are left out of the configuration
 so the SDL/GStreamer frameworks are not needed) against `APX_GCS_REF` (default `main`, can be set when
-running the workflow manually) and publishes a GitHub release with both archives and the
+running the workflow manually) and publishes a GitHub release with both libraries and the
 build info. Pushes to `main` and pull requests only build and upload the artifacts.
 
 ## License

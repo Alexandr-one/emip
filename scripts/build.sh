@@ -60,35 +60,27 @@ done
 cmake -S "$SRC" -B "$BUILD" -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build "$BUILD" --target "$PLUGIN"
 
-# package: <out>/Emip-<os>-<arch>.zip with the library (the file name is the plugin name) and build info
+# package: <out>/Emip-<os>-<arch>.<so|dylib> (the GCS renames it back to Emip.<ext>) and build info
 mkdir -p "$OUT"
 case "$(uname -s)" in
-Darwin) LIB=$BUILD/out/plugins/$PLUGIN.dylib ;;
-*) LIB=$BUILD/out/plugins/$PLUGIN.so ;;
-esac
-case "$(uname -s)" in
 Darwin)
+    LIB=$BUILD/out/plugins/$PLUGIN.dylib
     OS=macos
     ARCH=$(lipo -archs "$LIB" 2>/dev/null | tr ' ' '_')
     [ "$ARCH" = "x86_64_arm64" ] || [ "$ARCH" = "arm64_x86_64" ] && ARCH=universal
     ;;
 *)
+    LIB=$BUILD/out/plugins/$PLUGIN.so
     OS=$(uname -s | tr '[:upper:]' '[:lower:]')
     ARCH=$(uname -m)
     ;;
 esac
 QT_DIR=$(grep -m1 '^Qt6_DIR:' "$BUILD/CMakeCache.txt" | cut -d= -f2 || true)
-STAGE=$BUILD/package
-rm -rf "$STAGE" && mkdir -p "$STAGE"
-cp -f "$LIB" "$STAGE/"
+cp -f "$LIB" "$OUT/$PLUGIN-$OS-$ARCH.${LIB##*.}"
 {
     echo "plugin: $PLUGIN $(git -C "$ROOT" describe --tags --always --dirty 2>/dev/null || echo unknown)"
     echo "apx-gcs: $(git -C "$SRC" describe --tags --always) ($(git -C "$SRC" rev-parse HEAD))"
     echo "qt: ${QT_DIR:-unknown}"
     echo "built: $(date -u +%Y-%m-%dT%H:%M:%SZ) on $OS-$ARCH"
-} | tee "$STAGE/BUILD_INFO.txt"
-cp -f "$STAGE/BUILD_INFO.txt" "$OUT/BUILD_INFO-$OS-$ARCH.txt"
-# zip (not tar.gz): the GCS installs release assets with its built-in zip reader
-rm -f "$OUT/$PLUGIN-$OS-$ARCH.zip"
-(cd "$STAGE" && python3 -m zipfile -c "$OUT/$PLUGIN-$OS-$ARCH.zip" "$(basename "$LIB")" BUILD_INFO.txt)
+} | tee "$OUT/BUILD_INFO-$OS-$ARCH.txt"
 ls -la "$OUT"
