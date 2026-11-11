@@ -60,7 +60,7 @@ done
 cmake -S "$SRC" -B "$BUILD" -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build "$BUILD" --target "$PLUGIN"
 
-# package: <out>/Emip-<os>-<arch>.tar.gz with Emip.so (the file name is the plugin name) and build info
+# package: <out>/Emip-<os>-<arch>.zip with the library (the file name is the plugin name) and build info
 mkdir -p "$OUT"
 case "$(uname -s)" in
 Darwin) LIB=$BUILD/out/plugins/$PLUGIN.dylib ;;
@@ -88,5 +88,7 @@ cp -f "$LIB" "$STAGE/"
     echo "built: $(date -u +%Y-%m-%dT%H:%M:%SZ) on $OS-$ARCH"
 } | tee "$STAGE/BUILD_INFO.txt"
 cp -f "$STAGE/BUILD_INFO.txt" "$OUT/BUILD_INFO-$OS-$ARCH.txt"
-tar -C "$STAGE" -czf "$OUT/$PLUGIN-$OS-$ARCH.tar.gz" .
+# zip (not tar.gz): the GCS installs release assets with its built-in zip reader
+rm -f "$OUT/$PLUGIN-$OS-$ARCH.zip"
+(cd "$STAGE" && python3 -m zipfile -c "$OUT/$PLUGIN-$OS-$ARCH.zip" "$(basename "$LIB")" BUILD_INFO.txt)
 ls -la "$OUT"

@@ -11,8 +11,14 @@ GCS build system.
 
 ## Install
 
+From the GCS (with the third party plugin system): Preferences, Application, Plugins,
+GitHub plugins, enter `https://github.com/Alexandr-one/emip` and press Install. The GCS
+downloads the release asset for its platform into `~/Documents/UAVOS/Plugins/github/emip/`.
+
+Manually:
+
 1. Download the archive for your platform from [Releases](../../releases):
-   `Emip-linux-x86_64.tar.gz` or `Emip-macos-universal.tar.gz`.
+   `Emip-linux-x86_64.zip` or `Emip-macos-universal.zip`.
 2. Unpack `Emip.so` (Linux) or `Emip.dylib` (macOS) into the user plugins folder
    `~/Documents/UAVOS/Plugins/` (if a version-suffixed folder such as `Plugins.12`
    exists, use that one). Keep the file name: the GCS takes the plugin name from it.
@@ -43,7 +49,7 @@ scripts/build.sh -s ~/work/apx-gcs   # existing checkout
 
 The plugin folder is copied into `src/Plugins/Tools/` of the GCS tree, registered in the
 Tools `CMakeLists.txt` and built as the `Emip` target together with the GCS libraries it
-links to. Output: `dist/Emip-<os>-<arch>.tar.gz` (with the library and `BUILD_INFO.txt`).
+links to. Output: `dist/Emip-<os>-<arch>.zip` (with the library and `BUILD_INFO.txt`).
 
 ## Release
 
