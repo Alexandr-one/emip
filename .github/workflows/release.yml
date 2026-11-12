@@ -109,4 +109,4 @@ jobs:
           name: EMIP ${{ github.ref_name }}
           body_path: notes.md
           generate_release_notes: true
-          files: dist/*
+          files: dist/*.zip

@@ -87,7 +87,8 @@ fi
 
 cmake --build "$BUILD" --target "$PLUGIN"
 
-# package: <out>/Emip-<os>-<arch>.<so|dylib> (the GCS renames it back to Emip.<ext>) and build info
+# package: <out>/Emip-<os>-<arch>.zip with Emip.<so|dylib> and the build info inside (the GCS unpacks
+# the archive into the plugin folder), the build info is also kept next to it for the release notes
 mkdir -p "$OUT"
 case "$(uname -s)" in
 Darwin)
@@ -103,11 +104,21 @@ Darwin)
     ;;
 esac
 QT_DIR=$(grep -m1 '^Qt6_DIR:' "$BUILD/CMakeCache.txt" | cut -d= -f2 || true)
-cp -f "$LIB" "$OUT/$PLUGIN-$OS-$ARCH.${LIB##*.}"
+INFO=$OUT/BUILD_INFO-$OS-$ARCH.txt
 {
     echo "plugin: $PLUGIN $(git -C "$ROOT" describe --tags --always --dirty 2>/dev/null || echo unknown)"
     echo "apx-gcs: $BUILT_VERSION $(git -C "$SRC" describe --tags --always) ($(git -C "$SRC" rev-parse HEAD))"
     echo "qt: ${QT_DIR:-unknown}"
     echo "built: $(date -u +%Y-%m-%dT%H:%M:%SZ) on $OS-$ARCH"
-} | tee "$OUT/BUILD_INFO-$OS-$ARCH.txt"
+} | tee "$INFO"
+ZIP=$OUT/$PLUGIN-$OS-$ARCH.zip
+rm -f "$ZIP"
+python3 - "$ZIP" "$LIB" "$INFO" <<'PY'
+import sys, zipfile, os
+zip_path, *files = sys.argv[1:]
+with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
+    for f in files:
+        z.write(f, os.path.basename(f))
+    print("packed:", zip_path, z.namelist())
+PY
 ls -la "$OUT"

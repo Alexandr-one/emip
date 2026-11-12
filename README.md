@@ -17,9 +17,9 @@ downloads the library for its platform from the latest release made for its own 
 into `~/Documents/UAVOS/Plugins/github/emip/`. Check for updates (also automatic on start)
 lists newer builds for the running GCS version; Update in the plugin entry installs them.
 
-Manually: download `Emip-linux-x86_64.so` or `Emip-macos-universal.dylib` from
-[Releases](../../releases), rename it to `Emip.so` / `Emip.dylib` (the GCS takes the plugin
-name from the file name) and put it into the user plugins folder `~/Documents/UAVOS/Plugins/`
+Manually: download `Emip-linux-x86_64.zip` or `Emip-macos-universal.zip` from
+[Releases](../../releases), unpack `Emip.so` / `Emip.dylib` (the GCS takes the plugin
+name from the file name) into the user plugins folder `~/Documents/UAVOS/Plugins/`
 (if a version-suffixed folder such as `Plugins.12` exists, use that one).
 
 On the first start the plugin switches itself off; enable it in Preferences, Plugins, EMIP.
@@ -53,7 +53,8 @@ scripts/build.sh -s ~/work/apx-gcs  # existing checkout
 
 The plugin folder is copied into `src/Plugins/Tools/` of the GCS tree, registered in the
 Tools `CMakeLists.txt` and built as the `Emip` target together with the GCS libraries it
-links to. Output: `dist/Emip-<os>-<arch>.so|dylib` and `dist/BUILD_INFO-<os>-<arch>.txt`.
+links to. Output: `dist/Emip-<os>-<arch>.zip` (with `Emip.so|dylib` and the build info inside)
+and `dist/BUILD_INFO-<os>-<arch>.txt`.
 
 ## Release
 
@@ -70,8 +71,8 @@ release workflow; the VideoStreaming and Joystick GCS plugins are left out of th
 so the SDL/GStreamer frameworks are not needed) against the GCS sources of the tag version:
 `release-11.2.32` when that GCS release exists, `main` otherwise (the version under development),
 or `APX_GCS_REF` when the workflow is run manually. The build fails when the configured GCS
-version is not the one of the tag. The release is published with both libraries and the
-build info. Pushes to `main` and pull requests only build and upload the artifacts.
+version is not the one of the tag. The release is published with the two archives (Linux and
+macOS), the build info is in the release notes. Pushes to `main` and pull requests only build and upload the artifacts.
 
 ## License
 
