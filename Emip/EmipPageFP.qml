@@ -29,19 +29,24 @@ Item {
     id: page
     clip: true
 
-    readonly property var f_pump1: mandala.ctr.sw.sw5
-    readonly property var f_pump2: mandala.ctr.sw.sw6
-    readonly property var f_pump3: mandala.ctr.sw.sw7
-    readonly property var f_manual: mandala.ctr.sw.sw8
+    // switch paths from the EMIP settings (Switches), defaults ctr.sw.sw5..sw8
+    readonly property var paths: (typeof(ui) !== 'undefined' && ui.emip) ? ui.emip.config.pumpSwitchPaths
+                                                                        : ["ctr.sw.sw5", "ctr.sw.sw6", "ctr.sw.sw7", "ctr.sw.sw8"]
+    function sw(i) { return mandala.fact(paths[i], true) }
+    readonly property var f_pump1: sw(0)
+    readonly property var f_pump2: sw(1)
+    readonly property var f_pump3: sw(2)
+    readonly property var f_manual: sw(3)
 
     // buttonHeight and buttonSpacing come from the Controls panel context
     component SwButton: TextButton {
         property var fact
         Layout.fillWidth: true
         size: buttonHeight
-        toolTip: fact.title + " (" + fact.descr + ")"
-        highlighted: fact.value > 0
-        onTriggered: fact.value = highlighted ? 0 : 1
+        enabled: fact ? true : false
+        toolTip: fact ? fact.title + " (" + fact.descr + ")" : qsTr("Not found")
+        highlighted: fact ? fact.value > 0 : false
+        onTriggered: if (fact) fact.value = highlighted ? 0 : 1
     }
 
     GridLayout {

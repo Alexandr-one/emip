@@ -33,6 +33,10 @@ QtObject {
     property real fuelScaleMax: 16
     property var tankCapacities: [16.7, 16.7, 16.7]
     property var tankLow: [2, 3, 4]
+    property var tankNames: ["FUEL 1", "FUEL 2", "FUEL 3"]
+    property bool fuelTotalIsSum: false // sum of tanks instead of fuelTotalPaths
+    property string fuelTotalName: "TOTAL FUEL"
+    property var pumpSwitchPaths: ["ctr.sw.sw5", "ctr.sw.sw6", "ctr.sw.sw7", "ctr.sw.sw8"] // FP page: pumps 1-3, manual
     property real fuelTotalLow: 10
     property real fuelTotalCritical: 5
     property real fuelTotalHysteresis: 2

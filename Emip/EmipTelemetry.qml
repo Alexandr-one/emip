@@ -70,7 +70,8 @@ QtObject {
     readonly property real fuel2: numeric(fuel2Fact)
     readonly property real fuel3: numeric(fuel3Fact)
     readonly property real measuredFuelTotal: numeric(fuelTotalFact)
-    readonly property real fuelTotal: isFinite(measuredFuelTotal) ? measuredFuelTotal : fuel1 + fuel2 + fuel3
+    readonly property bool totalIsSum: config ? config.fuelTotalIsSum : false
+    readonly property real fuelTotal: (!totalIsSum && isFinite(measuredFuelTotal)) ? measuredFuelTotal : fuel1 + fuel2 + fuel3
     readonly property var relay1: on(relay1Fact)
     readonly property var relay2: on(relay2Fact)
     readonly property var relay3: released(relay3Fact)

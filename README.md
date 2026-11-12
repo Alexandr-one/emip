@@ -3,8 +3,8 @@
 Engine Monitoring and Indication Panel for [APX GCS](https://github.com/uavos/apx-gcs):
 RPM dial with needle, EGT and fuel tank bars, pump voltage monitor and
 LOW FUEL / LOW BAT / SATCOM annunciators, shown in the instruments area next to the
-system terminal. The plugin also adds the `FP` page (fuel pumps 1-3 and manual mode,
-`ctr.sw.sw5..sw8`) to the Controls panel.
+system terminal, plus the Sensors page (automatic magnetometer and barometer reset).
+The plugin also adds the `FP` page (fuel pumps 1-3 and manual mode) to the Controls panel.
 
 The plugin is pure QML ([Emip/](Emip/)), compiled into a GCS plugin library by the
 GCS build system.
@@ -22,15 +22,19 @@ name from the file name) and put it into the user plugins folder `~/Documents/UA
 
 On the first start the plugin switches itself off; enable it in Preferences, Plugins, EMIP.
 
-Mandala bindings and limits: defaults in [Emip/EmipConfig.qml](Emip/EmipConfig.qml),
-overridden by the user file `~/Documents/UAVOS/emip/emip.json` (same keys). The file is
-created with the defaults on the first start and never overwritten afterwards.
+Settings (mandala paths, limits, tank names, FP page switches, automatic sensors reset) are
+the EMIP menu under the plugin entry: Preferences, Application, Plugins, GitHub plugins,
+Alexandr-one/emip, EMIP. On a GCS without that entry the menu is in Tools, System features.
+Defaults are in [Emip/EmipConfig.qml](Emip/EmipConfig.qml); the values persist in the
+application settings.
+
+The plugin registers two instruments: EMIP (RPM, EGT, fuel, annunciators) and Sensors
+(automatic magnetometer and barometer reset, guide target delay and distance).
 
 The library links against the GCS libraries, so take a release built against the GCS
 version you run (see `BUILD_INFO-*.txt` in the release) or build it yourself with
-`-r <apx-gcs tag>`. The plugin needs a GCS with `application.loadJson/saveJson` and
-`groundControl.addControlPage` (apx-gcs PR #159); on an older GCS the panel works with the
-bundled defaults and the `FP` page is not added.
+`-r <apx-gcs tag>`. The plugin needs a GCS with `groundControl.addControlPage` and the GitHub plugins entry
+(apx-gcs PR #159); on an older GCS the `FP` page is not added and the settings menu is in Tools.
 
 ## Build
 

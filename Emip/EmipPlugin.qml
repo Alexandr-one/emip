@@ -25,13 +25,13 @@ import QtCore
 import Apx.Application
 
 /*
-    EMIP instrument panel (engine, fuel, annunciators).
-    Bindings and limits: bundled defaults in EmipConfig.qml, overridden by the user file
-    <Documents>/UAVOS/emip/emip.json (same keys).
+    EMIP instrument panel (engine, fuel, annunciators) and the Sensors page.
+    Settings: EmipSettings, a Fact tree attached to the plugin entry in Preferences
+    (GitHub plugins, Alexandr-one/emip) or to Tools on a GCS without that entry; defaults in EmipConfig.qml.
     The panel is off by default: on its first start the plugin switches itself off in the
     plugins settings (the standard per-plugin switch) and remembers that with a stamp in
     QSettings, nothing is shown that time. Switch it on in Preferences, Plugins, EMIP: the
-    plugin is loaded again and registers the panel and the FP page.
+    plugin is loaded again and registers the panels and the FP page.
 */
 
 AppPlugin {
@@ -62,65 +62,87 @@ AppPlugin {
         }
         register()
     }
-    // the panel in the instruments area and the fuel pumps page in the Controls panel
+    // the panels in the instruments area and the fuel pumps page in the Controls panel
     function register()
     {
         ui.main.add(plugin, GroundControl.Layout.Instrument)
+        ui.main.add(sensors, GroundControl.Layout.Instrument)
         if(typeof(ui.main.addControlPage) === "function")
             ui.main.addControlPage({ "name": "FP", "mode": "", "source": Qt.resolvedUrl("EmipPageFP.qml") })
     }
 
-    // user JSON config overrides the bundled defaults (same keys as EmipConfig.qml)
-    readonly property string userConfig: StandardPaths.writableLocation(StandardPaths.DocumentsLocation) + "/UAVOS/emip/emip.json"
-    EmipConfig { id: instrumentConfig }
-    function loadUserConfig()
-    {
-        if(typeof(application.loadJson) !== "function"){
-            console.warn("EMIP: application.loadJson is not available in this GCS, using defaults")
-            return
-        }
-        var obj = application.loadJson(userConfig)
-        if(obj === undefined || obj === null){
-            // no file yet: write the defaults as a template, never overwrite an existing file
-            console.warn("EMIP: config file not found, using defaults:", userConfig)
-            saveDefaultConfig()
-            return
-        }
-        if(typeof(obj) !== "object"){
-            console.warn("EMIP: config is not a JSON object, using defaults:", userConfig)
-            return
-        }
-        var n = 0
-        for (var key in obj) {
-            if(!instrumentConfig.hasOwnProperty(key)){
-                console.warn("EMIP: unknown config key:", key)
-                continue
+    // settings menu: under the GitHub plugin entry when the GCS provides it, Tools otherwise
+    readonly property alias config: instrumentConfig
+    readonly property alias settings: emipSettings
+    EmipSettings {
+        id: emipSettings
+        Component.onCompleted: {
+            if(plugin.pluginSettings){
+                parentFact = plugin.pluginSettings
+            }else{
+                section = qsTr("System features")
+                parentFact = apx.tools
             }
-            instrumentConfig[key] = obj[key]
-            n++
         }
-        console.log("EMIP: config loaded:", n, "keys from", userConfig)
     }
-    // write the bundled defaults as a template for the operator
-    function saveDefaultConfig()
-    {
-        var obj = {}
-        var n = 0
-        for (var key in instrumentConfig) {
-            if(key === "objectName" || typeof(instrumentConfig[key]) === "function") continue
-            obj[key] = instrumentConfig[key]
-            n++
-        }
-        if(typeof(application.saveJson) !== "function") return
-        if(n > 0 && application.saveJson(userConfig, JSON.stringify(obj, null, 2)))
-            console.log("EMIP: default config written:", n, "keys to", userConfig)
+    Component.onCompleted: application.registerUiComponent(plugin, "emip") // ui.emip for the FP page
+
+    EmipConfig {
+        id: instrumentConfig
+        rpmPaths: [emipSettings.rpmPath]
+        pumpVoltagePaths: [emipSettings.pumpVoltagePath]
+        throttleFeedbackPaths: [emipSettings.throttlePath]
+        engineStatusPaths: [emipSettings.engineStatusPath]
+        egtPaths: [emipSettings.egtPath]
+        fuelTotalPaths: [emipSettings.totalPath]
+        fuel1Paths: [emipSettings.tankPaths[0]]
+        fuel2Paths: [emipSettings.tankPaths[1]]
+        fuel3Paths: [emipSettings.tankPaths[2]]
+        relay1Paths: [emipSettings.relay1Path]
+        relay2Paths: [emipSettings.relay2Path]
+        relay3Paths: [emipSettings.relay3Path]
+        satcomPaths: [emipSettings.satcomPath]
+        batteryPaths: [emipSettings.batteryPath]
+        rpm100: emipSettings.rpm100
+        rpmMin: emipSettings.rpmMin
+        rpmMax: emipSettings.rpmMax
+        rpmLowRed: emipSettings.rpmLowRed
+        rpmLowYellow: emipSettings.rpmLowYellow
+        rpmHighYellow: emipSettings.rpmHighYellow
+        rpmHighRed: emipSettings.rpmHighRed
+        egtMin: emipSettings.egtMin
+        egtMax: emipSettings.egtMax
+        egtLow: emipSettings.egtLow
+        egtHigh: emipSettings.egtHigh
+        rpmMultiplier: emipSettings.rpmMultiplier
+        egtMultiplier: emipSettings.egtMultiplier
+        fuelScaleMax: emipSettings.scaleMax
+        tankCapacities: emipSettings.tankCapacities
+        tankLow: emipSettings.tankLow
+        tankNames: emipSettings.tankNames
+        fuelTotalIsSum: emipSettings.totalIsSum
+        fuelTotalName: emipSettings.totalName
+        fuelTotalLow: emipSettings.totalLow
+        fuelTotalCritical: emipSettings.totalCritical
+        fuelTotalHysteresis: emipSettings.totalHysteresis
+        batterySeries: emipSettings.batterySeries
+        batteryWarningCellVoltage: emipSettings.batteryWarning
+        batteryCriticalCellVoltage: emipSettings.batteryCritical
+        batteryCellHysteresis: emipSettings.batteryHysteresis
+        pumpAbsoluteHigh: emipSettings.pumpAbsoluteHigh
+        pumpSwitchPaths: emipSettings.pumpSwitchPaths
     }
-    Component.onCompleted: loadUserConfig()
 
     EmipTelemetry {
         id: instrumentData
         unit: apx.fleet.current
         config: instrumentConfig
+    }
+
+    // second instrument: automatic sensors reset
+    EmipSensors {
+        id: sensors
+        settings: emipSettings
     }
 
     sourceComponent: EmipPanel {

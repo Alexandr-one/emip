@@ -89,7 +89,7 @@ Canvas {
         var pumpColor=pumpLevel===3 ? red : pumpLevel===2 ? "#ffcf00" : white
         if (pumpMessage) text(pumpMessage,rpmW/2,fs*1.8,fs*0.7,pumpColor,"center",true)
         text("EGT", rpmW + egtW * 0.22, fs * 1.7, fs, white, "center", true)
-        frame(fuelX, w - fuelX, "")
+        frame(fuelX, w - fuelX, config.fuelTotalName ? config.fuelTotalName : "")
         text(display(total, 1) + " L", fuelX + (w - fuelX) / 2, fs * 1.6, fs * 1.1, grey, "center", true)
 
         // Side-facing tachometer: low at lower right, high at upper right.
@@ -155,6 +155,8 @@ Canvas {
             var bx = laneX + laneW * (i + 0.5), bw = Math.max(5, Math.min(fs * 2.3, laneW * 0.60))
             var cap = config.tankCapacities[i], capY = fy(Math.min(cap, maxLitres))
             c.fillStyle = "#000000"; c.fillRect(bx - bw / 2, capY, bw, bottom - capY)
+            if (config.tankNames && config.tankNames[i])
+                text(config.tankNames[i], bx, top - fs * 0.45, Math.min(fs * 0.7, laneW / 4), grey, "center", true)
             if (isFinite(fuels[i])) {
                 var fillY = fy(clamp(fuels[i], 0, maxLitres))
                 c.fillStyle = fuels[i] < config.tankLow[i] ? red : "#0f446e"
