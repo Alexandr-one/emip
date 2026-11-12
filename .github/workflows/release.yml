@@ -3,18 +3,19 @@ name: Build plugin
 on:
   push:
     branches: [main]
-    tags: ["v*"]
+    tags: ["v[0-9]*", "[0-9]*"]
   pull_request:
   workflow_dispatch:
     inputs:
       apx_gcs_ref:
-        description: apx-gcs git ref (branch, tag or commit) to build against
-        default: main
+        description: apx-gcs git ref (branch, tag or commit) to build against, default by the plugin tag
+        default: ""
 
 env:
-  # GCS sources the plugin is built against
+  # GCS sources the plugin is built against; empty: release-<version> of the plugin tag (v11.2.32.1 ->
+  # release-11.2.32) when it exists, main otherwise (see scripts/build.sh)
   APX_GCS_REPO: https://github.com/uavos/apx-gcs.git
-  APX_GCS_REF: ${{ github.event.inputs.apx_gcs_ref || 'main' }}
+  APX_GCS_REF: ${{ github.event.inputs.apx_gcs_ref || '' }}
 
 jobs:
   build-linux:
@@ -31,7 +32,7 @@ jobs:
           fetch-tags: true
       - run: git config --global --add safe.directory '*'
 
-      - name: Build plugin against apx-gcs ${{ env.APX_GCS_REF }}
+      - name: Build plugin against apx-gcs ${{ env.APX_GCS_REF || 'release of the tag' }}
         run: scripts/build.sh
 
       - name: Upload artifacts
@@ -68,7 +69,7 @@ jobs:
             qtconnectivity qttasktree qtimageformats
           echo "/tmp/$VERSION_QT/macos/bin" >> $GITHUB_PATH
 
-      - name: Build plugin against apx-gcs ${{ env.APX_GCS_REF }}
+      - name: Build plugin against apx-gcs ${{ env.APX_GCS_REF || 'release of the tag' }}
         env:
           QT_PATH: /tmp/${{ env.VERSION_QT }}/macos
           # these GCS plugins need the SDL/GStreamer frameworks, not needed for ours
@@ -89,7 +90,7 @@ jobs:
   release:
     name: Publish Release
     needs: [build-linux, build-macos]
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     permissions:
       contents: write

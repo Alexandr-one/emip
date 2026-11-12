@@ -13,7 +13,9 @@ GCS build system.
 
 From the GCS (with the third party plugin system): Preferences, Application, Plugins,
 GitHub plugins, enter `https://github.com/Alexandr-one/emip` and press Install. The GCS
-downloads the library for its platform into `~/Documents/UAVOS/Plugins/github/emip/`.
+downloads the library for its platform from the latest release made for its own version
+into `~/Documents/UAVOS/Plugins/github/emip/`. Check for updates (also automatic on start)
+lists newer builds for the running GCS version; Update in the plugin entry installs them.
 
 Manually: download `Emip-linux-x86_64.so` or `Emip-macos-universal.dylib` from
 [Releases](../../releases), rename it to `Emip.so` / `Emip.dylib` (the GCS takes the plugin
@@ -31,9 +33,12 @@ application settings.
 The plugin registers two instruments: EMIP (RPM, EGT, fuel, annunciators) and Sensors
 (automatic magnetometer and barometer reset, guide target delay and distance).
 
-The library links against the GCS libraries, so take a release built against the GCS
-version you run (see `BUILD_INFO-*.txt` in the release) or build it yourself with
-`-r <apx-gcs tag>`. The plugin needs a GCS with `groundControl.addControlPage` and the GitHub plugins entry
+The library links against the GCS libraries, so the release tag carries the GCS version it
+is built for plus the plugin build number: `v11.2.32.1` is the first build for GCS 11.2.32.
+The GCS loads a GitHub plugin only when the versions match (a plugin for another version is
+reported as disabled in the console) and offers the latest build for its version instead.
+For a manual install take the release for the GCS version you run (see `BUILD_INFO-*.txt`).
+The plugin needs a GCS with `groundControl.addControlPage` and the GitHub plugins entry
 (apx-gcs PR #159); on an older GCS the `FP` page is not added and the settings menu is in Tools.
 
 ## Build
@@ -41,9 +46,9 @@ version you run (see `BUILD_INFO-*.txt` in the release) or build it yourself wit
 Same as CI, needs the GCS toolchain (Qt 6, cmake, ninja, python with jinja2/networkx):
 
 ```bash
-scripts/build.sh                 # clones apx-gcs (main) into ./apx-gcs
-scripts/build.sh -r release-12.0 # specific apx-gcs ref
-scripts/build.sh -s ~/work/apx-gcs   # existing checkout
+scripts/build.sh                    # clones apx-gcs into ./apx-gcs (release of the tag, else main)
+scripts/build.sh -r release-11.2.32 # specific apx-gcs ref
+scripts/build.sh -s ~/work/apx-gcs  # existing checkout
 ```
 
 The plugin folder is copied into `src/Plugins/Tools/` of the GCS tree, registered in the
@@ -52,16 +57,20 @@ links to. Output: `dist/Emip-<os>-<arch>.so|dylib` and `dist/BUILD_INFO-<os>-<ar
 
 ## Release
 
+Tag = GCS version + plugin build number (`v<gcs>.<build>`):
+
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+git tag v11.2.32.1   # first build for GCS 11.2.32, the next one is v11.2.32.2
+git push origin v11.2.32.1
 ```
 
 The [workflow](.github/workflows/release.yml) builds the plugin for Linux (in the
 `uavos/apx-gcs-linux` container) and macOS (universal arm64+x86_64, same Qt version as the GCS
 release workflow; the VideoStreaming and Joystick GCS plugins are left out of the configuration
-so the SDL/GStreamer frameworks are not needed) against `APX_GCS_REF` (default `main`, can be set when
-running the workflow manually) and publishes a GitHub release with both libraries and the
+so the SDL/GStreamer frameworks are not needed) against the GCS sources of the tag version:
+`release-11.2.32` when that GCS release exists, `main` otherwise (the version under development),
+or `APX_GCS_REF` when the workflow is run manually. The build fails when the configured GCS
+version is not the one of the tag. The release is published with both libraries and the
 build info. Pushes to `main` and pull requests only build and upload the artifacts.
 
 ## License
