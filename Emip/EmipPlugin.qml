@@ -26,8 +26,8 @@ import Apx.Application
 
 /*
     EMIP instrument panel (engine, fuel, annunciators) and the Sensors page.
-    Settings: EmipSettings, a Fact tree attached to the plugin entry in Preferences
-    (GitHub plugins, Alexandr-one/emip) or to Tools on a GCS without that entry; defaults in EmipConfig.qml.
+    Settings: EmipSettings, a Fact tree attached to the entry of this repository in Preferences
+    (Plugins, GitHub plugins, Alexandr-one/emip) or to Tools when installed another way; defaults in EmipConfig.qml.
     The panel is off by default: on its first start the plugin switches itself off in the
     plugins settings (the standard per-plugin switch) and remembers that with a stamp in
     QSettings, nothing is shown that time. Switch it on in Preferences, Plugins, EMIP: the
@@ -71,14 +71,17 @@ AppPlugin {
             ui.main.addControlPage({ "name": "FP", "mode": "", "source": Qt.resolvedUrl("EmipPageFP.qml") })
     }
 
-    // settings menu: under the GitHub plugin entry when the GCS provides it, Tools otherwise
+    // settings menu: under the entry of this repository in Preferences, Plugins, GitHub plugins
+    // (apx.settings.application.plugins.github.emip), Tools when installed another way
     readonly property alias config: instrumentConfig
     readonly property alias settings: emipSettings
     EmipSettings {
         id: emipSettings
         Component.onCompleted: {
-            if(plugin.pluginSettings){
-                parentFact = plugin.pluginSettings
+            var github = apx.settings.application.child("plugins").child("github")
+            var entry = github ? github.child("emip") : null
+            if(entry){
+                parentFact = entry
             }else{
                 section = qsTr("System features")
                 parentFact = apx.tools
