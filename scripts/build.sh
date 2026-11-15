@@ -96,6 +96,19 @@ Darwin)
     OS=macos
     ARCH=$(lipo -archs "$LIB" 2>/dev/null | tr ' ' '_')
     [ "$ARCH" = "x86_64_arm64" ] || [ "$ARCH" = "arm64_x86_64" ] && ARCH=universal
+    # The dylib keeps the build-time rpaths (builder's out/lib and Qt paths), which do not exist
+    # on the user's machine; dyld resolves @rpath deps of a dlopen-ed plugin through the plugin's
+    # own rpaths, not the host executable's. Point them at the GCS library folders instead:
+    # Contents/Frameworks of the release bundle and out/lib of a developer build.
+    for rp in $(otool -l "$LIB" | awk '/LC_RPATH/{getline; getline; print $2}' | sort -u); do
+        install_name_tool -delete_rpath "$rp" "$LIB"
+    done
+    install_name_tool \
+        -add_rpath @executable_path/../Frameworks \
+        -add_rpath @executable_path/../lib \
+        "$LIB"
+    codesign --force --sign - "$LIB"
+    echo "rpaths set:" && otool -l "$LIB" | grep -A2 LC_RPATH | grep ' path ' | sort -u
     ;;
 *)
     LIB=$BUILD/out/plugins/$PLUGIN.so
