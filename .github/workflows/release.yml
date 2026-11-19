@@ -5,25 +5,130 @@ on:
     branches: [main]
     tags: ["v[0-9]*", "[0-9]*"]
   pull_request:
+  # watch the GCS releases: a new GCS release gets a plugin release built for it
+  schedule:
+    - cron: "17,47 * * * *"
   workflow_dispatch:
     inputs:
+      mode:
+        description: "auto: release when the latest GCS release has no plugin build yet; release: always publish the next build for the latest GCS release; build: build only"
+        type: choice
+        options: [auto, release, build]
+        default: auto
       apx_gcs_ref:
         description: apx-gcs git ref (branch, tag or commit) to build against, default by the plugin tag
         default: ""
 
 env:
-  # GCS sources the plugin is built against; empty: release-<version> of the plugin tag (v11.2.32.1 ->
+  # GCS sources the plugin is built against; empty ref: release-<version> of the plugin tag (v11.2.32.1 ->
   # release-11.2.32) when it exists, main otherwise (see scripts/build.sh)
   APX_GCS_REPO: https://github.com/uavos/apx-gcs.git
   APX_GCS_REF: ${{ github.event.inputs.apx_gcs_ref || '' }}
+  # repository whose releases (release-X.Y.Z) are watched for new GCS versions
+  # TEST: a stand-in repository for now, switch to uavos/apx-gcs when the scheme is confirmed
+  GCS_WATCH_REPO: Alexandr-one/gcs-release-watch
+
+# one run at a time per event and ref, so two scheduled runs never compute the same tag
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
+  # What to do in this run:
+  #   tag push            build and publish the pushed tag
+  #   push to main, PR    build only
+  #   schedule, auto      the latest GCS release X.Y.Z has no plugin release built from it yet:
+  #                       build and publish vX.Y.Z, or vX.Y.Z.<n+1> when builds for X.Y.Z exist
+  #                       (made before the GCS release, from main); nothing otherwise
+  #   release             always publish the next build for the latest GCS release
+  # The version always comes from the latest GCS release, not from the newest plugin tag:
+  # with plugin tags for 11.2.33 and the latest GCS release 11.2.32 the next build is v11.2.32.<n+1>.
+  plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    outputs:
+      build: ${{ steps.plan.outputs.build }}
+      release: ${{ steps.plan.outputs.release }}
+      tag: ${{ steps.plan.outputs.tag }}
+    steps:
+      - id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MODE: ${{ github.event.inputs.mode || 'auto' }}
+        run: |
+          set -euo pipefail
+          build=true
+          release=false
+          tag=
+
+          auto=false
+          case "$GITHUB_EVENT_NAME" in
+          push)
+              if [ "$GITHUB_REF_TYPE" = tag ]; then
+                  tag=$GITHUB_REF_NAME
+                  release=true
+              fi
+              ;;
+          schedule) auto=true ;;
+          workflow_dispatch) if [ "$MODE" != build ]; then auto=true; fi ;;
+          esac
+
+          if $auto; then
+              watch=$(gh api "repos/$GCS_WATCH_REPO/releases/latest" --jq .tag_name)
+              gcs=$(echo "$watch" | sed -nE 's/^(release-|v)?([0-9]+\.[0-9]+\.[0-9]+)$/\2/p')
+              if [ -z "$gcs" ]; then
+                  echo "::error::unexpected release tag '$watch' in $GCS_WATCH_REPO"
+                  exit 1
+              fi
+              re=${gcs//./\\.}
+              echo "latest GCS release: $watch ($GCS_WATCH_REPO), version $gcs"
+
+              # a plugin release built from exactly that GCS release has this line in its notes:
+              # apx-gcs: 11.2.32 release-11.2.32 (<sha>)
+              notes=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+                  --jq '.[] | select(.draft | not) | .body // ""')
+              done_cnt=$(echo "$notes" | grep -cE "^apx-gcs: [^ ]+ release-$re \(" || true)
+
+              if [ "$MODE" = auto ] && [ "$done_cnt" -gt 0 ]; then
+                  echo "plugin release for GCS $gcs exists, nothing to do"
+                  build=false
+              else
+                  # vX.Y.Z counts as build 0, the next one is vX.Y.Z.<max+1>
+                  tags=$(git ls-remote --tags "https://github.com/$GITHUB_REPOSITORY")
+                  builds=$(echo "$tags" | sed -nE "s#.*refs/tags/v?$re(\.([0-9]+))?(\^\{\})?\$#n\2#p")
+                  if [ -z "$builds" ]; then
+                      tag=v$gcs
+                  else
+                      max=0
+                      for b in $builds; do
+                          n=${b#n}
+                          n=${n:-0}
+                          if [ "$n" -gt "$max" ]; then max=$n; fi
+                      done
+                      tag=v$gcs.$((max + 1))
+                  fi
+                  release=true
+              fi
+          fi
+
+          echo "build=$build release=$release tag=${tag:-none}"
+          {
+              echo "build=$build"
+              echo "release=$release"
+              echo "tag=$tag"
+          } >>"$GITHUB_OUTPUT"
+          echo "event: $GITHUB_EVENT_NAME, build: $build, release: $release, tag: ${tag:-none}" >>"$GITHUB_STEP_SUMMARY"
+
   build-linux:
     name: Build Linux
+    needs: plan
+    if: needs.plan.outputs.build == 'true'
     runs-on: ubuntu-latest
     # the same image the GCS itself is built with (Qt, cmake, ninja, python tools)
     container:
       image: uavos/apx-gcs-linux:latest
+    env:
+      PLUGIN_TAG: ${{ needs.plan.outputs.tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -45,10 +150,13 @@ jobs:
 
   build-macos:
     name: Build macOS
+    needs: plan
+    if: needs.plan.outputs.build == 'true'
     runs-on: macos-latest
     # same Qt version as the GCS release workflow (.github/workflows/apx-gcs-release.yml)
     env:
       VERSION_QT: 6.12.0
+      PLUGIN_TAG: ${{ needs.plan.outputs.tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -89,8 +197,8 @@ jobs:
 
   release:
     name: Publish Release
-    needs: [build-linux, build-macos]
-    if: github.ref_type == 'tag'
+    needs: [plan, build-linux, build-macos]
+    if: needs.plan.outputs.release == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -106,7 +214,10 @@ jobs:
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          name: EMIP ${{ github.ref_name }}
+          # the tag is created here for automatic releases (no tag was pushed)
+          tag_name: ${{ needs.plan.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: EMIP ${{ needs.plan.outputs.tag }}
           body_path: notes.md
           generate_release_notes: true
           files: dist/*.zip

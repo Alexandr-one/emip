@@ -34,7 +34,8 @@ The plugin registers two instruments: EMIP (RPM, EGT, fuel, annunciators) and Se
 (automatic magnetometer and barometer reset, guide target delay and distance).
 
 The library links against the GCS libraries, so the release tag carries the GCS version it
-is built for plus the plugin build number: `v11.2.32.1` is the first build for GCS 11.2.32.
+is built for: `v11.2.32` is the build for GCS 11.2.32, further builds for the same GCS version
+add a build number (`v11.2.32.1`, `v11.2.32.2`).
 The GCS loads a GitHub plugin only when the versions match (a plugin for another version is
 reported as disabled in the console) and offers the latest build for its version instead.
 For a manual install take the release for the GCS version you run (see `BUILD_INFO-*.txt`).
@@ -58,21 +59,39 @@ and `dist/BUILD_INFO-<os>-<arch>.txt`.
 
 ## Release
 
-Tag = GCS version + plugin build number (`v<gcs>.<build>`):
+Releases are made by the [workflow](.github/workflows/release.yml) on its own. Twice an hour it
+reads the latest GCS release (`release-X.Y.Z`, repository `GCS_WATCH_REPO` in the workflow) and,
+when no plugin release has been built from that GCS release yet, builds the plugin against it and
+publishes the next tag for that GCS version:
+
+| plugin tags for GCS X.Y.Z | published tag |
+|---|---|
+| none (e.g. the plugin is at 11.2.30, the GCS released 11.2.32) | `v11.2.32` |
+| `v11.2.32` | `v11.2.32.1` |
+| up to `v11.2.32.4` | `v11.2.32.5` |
+
+The version always comes from the latest GCS release, not from the newest plugin tag: with plugin
+tags for 11.2.33 (built from `main`) and the latest GCS release 11.2.32, the next build is for
+11.2.32. A plugin release counts as built from a GCS release when its notes have the line
+`apx-gcs: X.Y.Z release-X.Y.Z (<commit>)`.
+
+By hand, in Actions, Build plugin, Run workflow: `auto` does the same check right away, `release`
+publishes the next build for the latest GCS release even when one exists (after a plugin fix),
+`build` only builds. A pushed tag is still built and published as it is:
 
 ```bash
-git tag v11.2.32.1   # first build for GCS 11.2.32, the next one is v11.2.32.2
-git push origin v11.2.32.1
+git tag v11.2.32.5
+git push origin v11.2.32.5
 ```
 
-The [workflow](.github/workflows/release.yml) builds the plugin for Linux (in the
-`uavos/apx-gcs-linux` container) and macOS (universal arm64+x86_64, same Qt version as the GCS
-release workflow; the VideoStreaming and Joystick GCS plugins are left out of the configuration
-so the SDL/GStreamer frameworks are not needed) against the GCS sources of the tag version:
-`release-11.2.32` when that GCS release exists, `main` otherwise (the version under development),
-or `APX_GCS_REF` when the workflow is run manually. The build fails when the configured GCS
-version is not the one of the tag. The release is published with the two archives (Linux and
-macOS), the build info is in the release notes. Pushes to `main` and pull requests only build and upload the artifacts.
+The plugin is built for Linux (in the `uavos/apx-gcs-linux` container) and macOS (universal
+arm64+x86_64, same Qt version as the GCS release workflow; the VideoStreaming and Joystick GCS
+plugins are left out of the configuration so the SDL/GStreamer frameworks are not needed) against
+the GCS sources of the tag version: `release-11.2.32` when that GCS release exists, `main`
+otherwise (the version under development), or `APX_GCS_REF` when the workflow is run manually.
+The build fails when the configured GCS version is not the one of the tag. The release is
+published with the two archives (Linux and macOS), the build info is in the release notes.
+Pushes to `main` and pull requests only build and upload the artifacts.
 
 ## License
 

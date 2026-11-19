@@ -4,18 +4,18 @@
 # Usage: scripts/build.sh [options]
 #   -s DIR   existing apx-gcs checkout (with submodules); default: clone into ./apx-gcs
 #   -r REF   apx-gcs git ref to clone (branch, tag or commit); default: the GCS release the plugin
-#            tag is made for (tag v11.2.32.1 -> release-11.2.32 when it exists, main otherwise)
+#            tag is made for (tag v11.2.32[.1] -> release-11.2.32 when it exists, main otherwise)
 #   -b DIR   build directory, default: ./build
 #   -o DIR   output directory for the packaged plugin, default: ./dist
-# Env: APX_GCS_REPO, APX_GCS_REF (clone source), APX_GCS_SKIP_PLUGINS (space separated GCS plugin
+# Env: APX_GCS_REPO, APX_GCS_REF (clone source), PLUGIN_TAG (release tag), APX_GCS_SKIP_PLUGINS (space separated GCS plugin
 # directories to drop from the configuration, e.g. "VideoStreaming Joystick").
 #
 # The plugin directory is copied into <apx-gcs>/src/Plugins/Tools and registered in the
 # Tools CMakeLists, then only the plugin target (and the GCS libraries it links to) is built.
 #
-# Plugin releases are tagged with the GCS version plus the plugin build number: v11.2.32.1 is the
-# first build for GCS 11.2.32. The GCS loads a plugin only when the versions match, so the build
-# fails when the configured GCS version differs from the tag.
+# Plugin releases are tagged with the GCS version, further builds for the same GCS version add a
+# build number: v11.2.32, then v11.2.32.1, v11.2.32.2. The GCS loads a plugin only when the
+# versions match, so the build fails when the configured GCS version differs from the tag.
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
@@ -36,10 +36,14 @@ while getopts "s:r:b:o:" opt; do
     esac
 done
 
-# the GCS version from the plugin tag (v11.2.32.1 -> 11.2.32), empty when not on a version tag
-PLUGIN_TAG=${GITHUB_REF_NAME:-}
-[ "${GITHUB_REF_TYPE:-}" = "tag" ] || PLUGIN_TAG=$(git -C "$ROOT" describe --tags --exact-match 2>/dev/null || true)
-GCS_VERSION=$(echo "$PLUGIN_TAG" | sed -nE 's/^v?([0-9]+\.[0-9]+\.[0-9]+)\.[0-9]+$/\1/p')
+# the GCS version from the plugin tag (v11.2.32 or v11.2.32.1 -> 11.2.32), empty when not on a version tag
+# PLUGIN_TAG env: the tag of the release being made (set by the workflow for automatic releases)
+PLUGIN_TAG=${PLUGIN_TAG:-}
+if [ -z "$PLUGIN_TAG" ]; then
+    PLUGIN_TAG=${GITHUB_REF_NAME:-}
+    [ "${GITHUB_REF_TYPE:-}" = "tag" ] || PLUGIN_TAG=$(git -C "$ROOT" describe --tags --exact-match 2>/dev/null || true)
+fi
+GCS_VERSION=$(echo "$PLUGIN_TAG" | sed -nE 's/^v?([0-9]+\.[0-9]+\.[0-9]+)(\.[0-9]+)?$/\1/p')
 echo "plugin tag: ${PLUGIN_TAG:-none}, GCS version: ${GCS_VERSION:-any}"
 
 if [ -z "$REF" ]; then
